@@ -82,11 +82,6 @@ namespace PictureConverterWPF
                 if (webp)
                 {
                     ConvertWebp(image, format);
-
-                    //await Task.Run(() =>
-                    //{
-                    //    ConvertWebp(image, format);
-                    //});
                 }
 
                 else
