@@ -2,7 +2,7 @@
 Simple Picture Converter in C#
 
 ## How to use
-Download the latest release on the [Release Page](https://github.com/Marly212/PictureConverter/releases) and extract it in your folder.
+Download the latest release on the [release page](https://github.com/Marly212/PictureConverter/releases) and extract it in your folder.
 
 Then that just double click the .exe file and the GUI should show up.
 
@@ -10,7 +10,7 @@ After that its pretty much self explaining how it works. Simple select a folder 
 
 When the program finished converting the pictures, a PoP-up should show.
 
-## Currently supported image formates
+## Currently supported image formats
 ### Convert from
 | Format        | Supported     |
 | :------------- | :----------: |
