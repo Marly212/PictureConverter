@@ -18,7 +18,6 @@ When the Programm finished Converting the Pictures, a PoP-up should show.
 | PNG   | :heavy_check_mark: |
 | WEBP   | :heavy_check_mark: |
 
-<br>
 
 ### Convert to
 | Format        | Supported     |
@@ -27,7 +26,6 @@ When the Programm finished Converting the Pictures, a PoP-up should show.
 | PNG   | :heavy_check_mark: |
 | WEBP   | No and I dont understand why you wanna |
 
-<br>
 
 ## Licencse
 
