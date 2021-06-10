@@ -9,11 +9,19 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Dependency\avifdec.exe" />
+    <None Remove="Dependency\avifenc.exe" />
     <None Remove="dwebp.exe" />
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="dwebp.exe">
+    <Content Include="Dependency\avifdec.exe">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Dependency\avifenc.exe">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Dependency\dwebp.exe">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

@@ -17,6 +17,7 @@ When the program finished converting the pictures, a PoP-up should show.
 |  JPG | :heavy_check_mark:   | 
 | PNG   | :heavy_check_mark: |
 | WEBP   | :heavy_check_mark: |
+| AVIF   | :heavy_check_mark: |
 
 
 ### Convert to

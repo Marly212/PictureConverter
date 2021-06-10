@@ -2,6 +2,7 @@
 using Ookii.Dialogs.Wpf;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -22,6 +23,7 @@ namespace PictureConverterWPF
     /// </summary>
     public partial class MainWindow : Window
     {
+        private static int images = 0;
         public MainWindow()
         {
             InitializeComponent();
@@ -47,9 +49,8 @@ namespace PictureConverterWPF
 
         private void FileSearch(object sender, RoutedEventArgs e)
         {
-
             OpenFileDialog dialog = new();
-            dialog.Filter = "Image Files|*.jpg;*.jpeg;*.png;*webp";
+            dialog.Filter = "Image Files|*.jpg;*.jpeg;*.png;*webp;*avif";
             dialog.Multiselect = true;
             dialog.ValidateNames = true;
             dialog.Title = "Select Picture to Convert";
@@ -92,9 +93,7 @@ namespace PictureConverterWPF
                     default:
                         break;
                 }
-                
-                await Convert.PrepareData(txtFile.Text, false, false, format);
-                
+                await PrepareData(txtFile.Text, false, false, format);
             }
 
             else if (!string.IsNullOrEmpty(txtFolder.Text))
@@ -121,14 +120,94 @@ namespace PictureConverterWPF
                 {
                     subfolder = true;
                 }
+                //images = GetPictureCountToConvert(txtFolder.Text, true, subfolder);
+                //lblProgress.Content = "0/" + images.ToString();
 
-                await Convert.PrepareData(txtFolder.Text, true, subfolder, format);
+                await PrepareData(txtFolder.Text, true, subfolder, format);
             }
             progressBar.Visibility = Visibility.Hidden;
             EnableAllButtons();
-            MessageBox.Show("Finish Converting Images","Message");
+            _ = MessageBox.Show("Finish Converting Images", "Message");
         }
 
+        public static async Task PrepareData(string fullPath, bool folder, bool subfolder, string format) //format 0 = png, 1 = jpg
+        {
+            MainWindow main = new();
+            var index = 0;
+            if (folder)
+            {
+                foreach (string imageFileName in Directory.GetFiles(fullPath))
+                {
+                    index++;
+                    main.lblProgress.Content = index + "/" + images.ToString();
+
+                    await Task.Run(async () =>
+                    {
+                        await Convert.ConvertImage(imageFileName, format);
+                    });
+                }
+
+                if (subfolder)
+                {
+                    foreach (string d in Directory.GetDirectories(fullPath))
+                    {
+                        foreach (string imageFileName in Directory.GetFiles(d))
+                        {
+                            index++;
+                            main.lblProgress.Content = index + "/" + images.ToString();
+
+                            await Task.Run(async () =>
+                            {
+                                await Convert.ConvertImage(imageFileName, format);
+                            });
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if (File.Exists(fullPath))
+                {
+                    await Task.Run(async () =>
+                    {
+                        await Convert.ConvertImage(fullPath, format);
+                    });
+                }
+            }
+        }
+
+
+        #region Helper Methodes
+        private int GetPictureCountToConvert(string path, bool folder, bool subfolder)
+        {
+            if (folder)
+            {
+                int images = 0;
+
+                if (subfolder)
+                {
+                    foreach (string d in Directory.GetDirectories(path))
+                    {
+                        foreach (string imageFileName in Directory.GetFiles(d))
+                        {
+                            images++;
+                        }
+                    }
+                }
+                else
+                {
+                    foreach (string image in Directory.GetFiles(path))
+                    {
+                        images++;
+                    }
+                }
+                return images;
+            }
+            else
+            {
+                return 1;
+            }
+        }
         private void DisableAllButtons()
         {
             bBrowseFile.IsEnabled = false;
@@ -141,5 +220,6 @@ namespace PictureConverterWPF
             bBrowseFolder.IsEnabled = true;
             bStart.IsEnabled = true;
         }
+        #endregion
     }
 }

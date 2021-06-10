@@ -12,99 +12,67 @@ namespace PictureConverterWPF
 {
     class Convert
     {
-        public static async Task PrepareData(string image, bool folder, bool subfolder, string format) //format 0 = png, 1 = jpg
-        {
-            if (folder)
-            {
-                foreach (string imageFileName in Directory.GetFiles(image))
-                {
-                    byte[] imgData = File.ReadAllBytes(imageFileName);
-
-                    var currentImageFormat = GetImageFormat(imgData);
-
-                    if (currentImageFormat == ImageFormat2.webp)
-                    {
-                        await ConvertImage(imageFileName, format, true);
-                    }
-                    else
-                    {
-                        await ConvertImage(imageFileName, format, false);
-                    }
-
-                }
-
-                if (subfolder)
-                {
-                    foreach (string d in Directory.GetDirectories(image))
-                    {
-                        foreach (string imageFileName in Directory.GetFiles(d))
-                        {
-                            byte[] imgData = File.ReadAllBytes(imageFileName);
-
-                            var currentImageFormat = GetImageFormat(imgData);
-
-                            if (currentImageFormat == ImageFormat2.webp)
-                            {
-                                await ConvertImage(imageFileName, format, true);
-                            }
-                            else
-                            {
-                                await ConvertImage(imageFileName, format, false);
-                            }
-                        }
-                    }
-                }
-            }
-            else
-            {
-                if (File.Exists(image))
-                {
-
-                    byte[] imgData = File.ReadAllBytes(image);
-
-                    var currentImageFormat = GetImageFormat(imgData);
-
-                    if (currentImageFormat == ImageFormat2.webp)
-                    {
-                        await ConvertImage(image, format, true);
-                    }
-                    else
-                    {
-                        await ConvertImage(image, format, false);
-                    }
-                }
-            }
-        }
-        private static async Task ConvertImage(string image, string format, bool webp)
+        public static async Task ConvertImage(string fullPathToImage, string format)
         {
             try
             {
-                if (webp)
+                byte[] imgData = File.ReadAllBytes(fullPathToImage);
+                ImageFormat2 currentImageFormat = GetImageFormat(imgData);
+
+                if (currentImageFormat == ImageFormat2.webp)
                 {
-                    ConvertWebp(image, format);
+                    ConvertWebp(fullPathToImage, format);
+                }
+
+                else if(currentImageFormat == ImageFormat2.avif)
+                {
+                    ConvertAvif(fullPathToImage, format);
                 }
 
                 else
                 {
-                    byte[] imgData = File.ReadAllBytes(image);
-                    var currentImageFormat = GetImageFormat(imgData);
-                    var imageName = Path.GetFileNameWithoutExtension(image);
-                    var imagePath = Path.GetDirectoryName(image) + "\\";
+                    var imageName = Path.GetFileNameWithoutExtension(fullPathToImage);
+                    var imageDirectory = Path.GetDirectoryName(fullPathToImage) + "\\";
+                    var outputFileFullPath = imageDirectory + imageName + "." + format;
 
-                    if (currentImageFormat == ImageFormat2.unknown)
+                    int caseForFile = GetCaseForImage(currentImageFormat, format, fullPathToImage);
+                    bool pass = false;
+                    bool formatIsExtension = false;
+
+                    switch (caseForFile)
                     {
-                        Logger.Log.Ging($"File: {image} is no Image File");
+                        case 1:
+                            Logger.Log.Ging($"File: {imageName} is no Image File");
+                            pass = true;
+                            break;
+
+                        case 2:
+                            File.Move(fullPathToImage, outputFileFullPath);
+                            Logger.Log.Ging($"File: {imageName} is already the Format {format}");
+                            break;
+
+                        case 3:
+                            pass = true;
+                            formatIsExtension = true;
+                            break;
+
+                        default:
+                            pass = true;
+                            break;
                     }
 
-                    if (currentImageFormat.ToString() == format)
+                    if (pass)
                     {
-                        File.Move(image, imagePath + imageName + "." + format);
-                        Logger.Log.Ging($"File: {image} is already the Format {format}");
-                    }
+                        if (formatIsExtension)
+                        {
+                            var newFullPathToImage = imageDirectory + imageName + "2" + "." + format;
+                            outputFileFullPath = fullPathToImage;
 
-                    else
-                    {
-                        Bitmap bitMapImage = new(image);
+                            File.Move(fullPathToImage, newFullPathToImage);
+                            fullPathToImage = newFullPathToImage;
+                        }
+
+                        Bitmap bitMapImage = new(fullPathToImage);
 
                         ImageFormat newImageFormat = ImageFormat.Png;
 
@@ -113,16 +81,15 @@ namespace PictureConverterWPF
                             newImageFormat = ImageFormat.Jpeg;
                         }
 
-                        bitMapImage.Save(imagePath + imageName + "." + format, newImageFormat);
+                        bitMapImage.Save(imageDirectory + imageName + "." + format, newImageFormat);
 
-                        if (File.Exists(imagePath + imageName + "." + format))
+                        if (File.Exists(fullPathToImage))
                         {
                             bitMapImage.Dispose();
-                            File.Delete(image);
-                            Logger.Log.Ging($"File: {image} was Converted");
+                            File.Delete(fullPathToImage);
+                            Logger.Log.Ging($"File: {imageName} was Converted");
                         }
                     }
-                    
                 }
                 await Task.Delay(10);
             }
@@ -131,25 +98,24 @@ namespace PictureConverterWPF
                 Logger.Log.Ging("Error while Converting Image " + ex);
             }
         }
-
-        private static void ConvertWebp(string image, string format)
+        private static void ConvertWebp(string fullPathToImage, string format)
         {
             try
             {
-                var imageName = Path.GetFileNameWithoutExtension(image);
-                var imagePath = Path.GetDirectoryName(image) + "\\";
+                var imageName = Path.GetFileNameWithoutExtension(fullPathToImage);
+                var imagePath = Path.GetDirectoryName(fullPathToImage) + "\\";
                 var outputName = imagePath + imageName + ".png";
 
                 Process dwebp = new Process();
-                dwebp.StartInfo.FileName = @".\dwebp.exe";
-                dwebp.StartInfo.Arguments = $"\"{image}\" -o \"{outputName}\"";
+                dwebp.StartInfo.FileName = @"Dependency\dwebp.exe";
+                dwebp.StartInfo.Arguments = $"\"{fullPathToImage}\" -o \"{outputName}\"";
                 dwebp.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
                 dwebp.StartInfo.CreateNoWindow = true;
                 dwebp.EnableRaisingEvents = true;
                 dwebp.Exited += (s, e) =>
                 {
-                    File.Delete(image);
-                    Logger.Log.Ging($"File: {image} was Converted");
+                    File.Delete(fullPathToImage);
+                    Logger.Log.Ging($"File: {imageName} was Converted");
                 };
 
                 _ = dwebp.Start();
@@ -172,23 +138,86 @@ namespace PictureConverterWPF
             {
                 Logger.Log.Ging("Error while Converting Webp " + ex);
             }
-
         }
 
-        private enum ImageFormat2
+        private static void ConvertAvif(string fullPathToImage, string format)
+        {
+            try
+            {
+                var imageName = Path.GetFileNameWithoutExtension(fullPathToImage);
+                var imagePath = Path.GetDirectoryName(fullPathToImage) + "\\";
+                var imageExtension = Path.GetExtension(fullPathToImage);
+                var realOutputName = imagePath + imageName + "." + format;
+
+                var tempNewName = "process";
+                var tempOutputName = imagePath + tempNewName;
+
+                File.Move(fullPathToImage, tempOutputName + imageExtension);
+
+                Process avif = new();
+                avif.StartInfo.FileName = @"Dependency\avifdec.exe";
+                avif.StartInfo.Arguments = $"\"{tempOutputName + imageExtension}\" \"{tempOutputName + "." + format}\"";
+                avif.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+                avif.StartInfo.CreateNoWindow = true;
+                avif.EnableRaisingEvents = true;
+                avif.Exited += (s, e) =>
+                {
+                    File.Move(tempOutputName + "." + format, realOutputName);
+                    File.Delete(tempOutputName);
+                    File.Delete(tempOutputName + imageExtension);
+                    Logger.Log.Ging($"File: {imageName} was Converted");
+                };
+
+                _ = avif.Start();
+
+                avif.WaitForExit();
+            }
+            catch (Exception ex)
+            {
+                Logger.Log.Ging("Error while Converting Avif " + ex);
+            }
+        }
+
+        private static int GetCaseForImage(ImageFormat2 currentImageFormat, string format, string pathToImage)
+        {
+            var extension = Path.GetExtension(pathToImage);
+
+            if (currentImageFormat == ImageFormat2.unknown)
+            {
+                return 1;
+            }
+
+            if (currentImageFormat.ToString() == format)
+            {
+                return 2;
+            }
+
+            if (extension == "." + format)
+            {
+                return 3;
+            }
+            else
+            {
+                return 0;
+            }
+        }
+
+        public enum ImageFormat2
         {
             jpeg,
             png,
             webp,
+            avif,
             unknown
         }
 
-        private static ImageFormat2 GetImageFormat(byte[] bytes)
+        public static ImageFormat2 GetImageFormat(byte[] bytes)
         {
             var png = new byte[] { 137, 80, 78, 71 };    // PNG
             var jpeg = new byte[] { 255, 216, 255, 224 }; // jpeg
             var jpeg2 = new byte[] { 255, 216, 255, 225 }; // jpeg canon
             var webp = new byte[] { 82, 73, 70, 70 }; // webp canon
+            var avif = new byte[] { 0, 0, 0, 28 }; // avif canon
 
             if (png.SequenceEqual(bytes.Take(png.Length)))
                 return ImageFormat2.png;
@@ -201,6 +230,9 @@ namespace PictureConverterWPF
 
             if (webp.SequenceEqual(bytes.Take(webp.Length)))
                 return ImageFormat2.webp;
+
+            if (avif.SequenceEqual(bytes.Take(avif.Length)))
+                return ImageFormat2.avif;
 
             return ImageFormat2.unknown;
         }
