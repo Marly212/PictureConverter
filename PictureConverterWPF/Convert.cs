@@ -72,8 +72,6 @@ namespace PictureConverterWPF
                             fullPathToImage = newFullPathToImage;
                         }
 
-                        Bitmap bitMapImage = new(fullPathToImage);
-
                         ImageFormat newImageFormat = ImageFormat.Png;
 
                         if (format == "jpg")
@@ -81,13 +79,21 @@ namespace PictureConverterWPF
                             newImageFormat = ImageFormat.Jpeg;
                         }
 
+                        if (File.Exists(imageDirectory + imageName + "." + format))
+                        {
+                            File.Move(imageDirectory + imageName + "." + format, imageDirectory + imageName + "_2" + "." + format);
+                            fullPathToImage = imageDirectory + imageName + "_2" + "." + format;
+                        }
+
+                        Bitmap bitMapImage = new(fullPathToImage);
+
                         bitMapImage.Save(imageDirectory + imageName + "." + format, newImageFormat);
 
                         if (File.Exists(fullPathToImage))
                         {
                             bitMapImage.Dispose();
                             File.Delete(fullPathToImage);
-                            Logger.Log.Ging($"File: {imageName} was Converted");
+                            Logger.Log.Ging($"File: {imageName}.{format} was Converted");
                         }
                     }
                 }
