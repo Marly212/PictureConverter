@@ -50,7 +50,7 @@ namespace PictureConverterWPF
         private void FileSearch(object sender, RoutedEventArgs e)
         {
             OpenFileDialog dialog = new();
-            dialog.Filter = "Image Files|*.jpg;*.jpeg;*.png;*webp;*avif";
+            dialog.Filter = "Image Files|*.jpg;*.jpeg;*.png;*webp;*avif;*gif";
             dialog.Multiselect = true;
             dialog.ValidateNames = true;
             dialog.Title = "Select Picture to Convert";

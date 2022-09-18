@@ -212,6 +212,7 @@ namespace PictureConverterWPF
         {
             jpeg,
             png,
+            gif,
             webp,
             avif,
             unknown
@@ -222,6 +223,7 @@ namespace PictureConverterWPF
             var png = new byte[] { 137, 80, 78, 71 };    // PNG
             var jpeg = new byte[] { 255, 216, 255, 224 }; // jpeg
             var jpeg2 = new byte[] { 255, 216, 255, 225 }; // jpeg canon
+            var gif = new byte[] { 71, 73, 70, 56 }; // gif canon
             var webp = new byte[] { 82, 73, 70, 70 }; // webp canon
             var avif = new byte[] { 0, 0, 0, 28 }; // avif canon
 
@@ -233,6 +235,9 @@ namespace PictureConverterWPF
 
             if (jpeg2.SequenceEqual(bytes.Take(jpeg2.Length)))
                 return ImageFormat2.jpeg;
+
+            if (gif.SequenceEqual(bytes.Take(gif.Length)))
+                return ImageFormat2.gif;
 
             if (webp.SequenceEqual(bytes.Take(webp.Length)))
                 return ImageFormat2.webp;

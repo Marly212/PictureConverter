@@ -3,9 +3,10 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net6.0-windows</TargetFramework>
-    <UseWPF>true</UseWPF>
+    <UseWPF>True</UseWPF>
     <StartupObject>PictureConverterWPF.App</StartupObject>
     <Platforms>AnyCPU;x64</Platforms>
+    <AssemblyVersion>1.0.3</AssemblyVersion>
   </PropertyGroup>
 
   <ItemGroup>
