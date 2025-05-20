@@ -1,0 +1,2 @@
+This is a text file, not an image.
+Content for testing purposes: TXT_PLACEHOLDER
