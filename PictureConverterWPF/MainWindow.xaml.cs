@@ -29,6 +29,7 @@ namespace PictureConverterWPF
             InitializeComponent();
             cboxFormat.Items.Add("png");
             cboxFormat.Items.Add("jpg");
+            cboxFormat.Items.Add("tif");
             cboxFormat.SelectedItem = cboxFormat.Items[0];
         }
 
@@ -50,7 +51,7 @@ namespace PictureConverterWPF
         private void FileSearch(object sender, RoutedEventArgs e)
         {
             OpenFileDialog dialog = new();
-            dialog.Filter = "Image Files|*.jpg;*.jpeg;*.png;*webp;*avif;*gif";
+            dialog.Filter = "Image Files|*.jpg;*.jpeg;*.png;*webp;*avif;*gif;*.tif;*.tiff";
             dialog.Multiselect = true;
             dialog.ValidateNames = true;
             dialog.Title = "Select Picture to Convert";
@@ -90,6 +91,10 @@ namespace PictureConverterWPF
                         format = "jpg";
                         break;
 
+                    case 2:
+                        format = "tif";
+                        break;
+
                     default:
                         break;
                 }
@@ -110,6 +115,10 @@ namespace PictureConverterWPF
 
                     case 1:
                         format = "jpg";
+                        break;
+
+                    case 2:
+                        format = "tif";
                         break;
 
                     default:

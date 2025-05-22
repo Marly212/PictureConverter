@@ -32,76 +32,78 @@ namespace PictureConverterWPF
                 else
                 {
                     var imageName = Path.GetFileNameWithoutExtension(fullPathToImage);
-                    var imageDirectory = Path.GetDirectoryName(fullPathToImage) + "\\";
-                    var outputFileFullPath = imageDirectory + imageName + "." + format;
+                    var imageDirectory = Path.GetDirectoryName(fullPathToImage); // Removed trailing "\\" for Path.Combine
+                    string originalExtension = Path.GetExtension(fullPathToImage).TrimStart('.').ToLowerInvariant();
+                    string targetFormatLower = format.ToLowerInvariant();
 
-                    int caseForFile = GetCaseForImage(currentImageFormat, format, fullPathToImage);
-                    bool pass = false;
-                    bool formatIsExtension = false;
-
-                    switch (caseForFile)
+                    if (currentImageFormat == ImageFormat2.unknown)
                     {
-                        case 1:
-                            Logger.Log.Ging($"File: {imageName} is no Image File");
-                            pass = true;
-                            break;
-
-                        case 2:
-                            File.Move(fullPathToImage, outputFileFullPath);
-                            Logger.Log.Ging($"File: {imageName} is already the Format {format}");
-                            break;
-
-                        case 3:
-                            pass = true;
-                            formatIsExtension = true;
-                            break;
-
-                        default:
-                            pass = true;
-                            break;
+                        Logger.Log.Ging($"File: {imageName}{Path.GetExtension(fullPathToImage)} is not a recognized image type or is corrupted. Skipping.");
+                        return; // Early exit
                     }
 
-                    if (pass)
+                    if (currentImageFormat.ToString().ToLowerInvariant() == targetFormatLower)
                     {
-                        if (formatIsExtension)
+                        if (originalExtension != targetFormatLower)
                         {
-                            var newFullPathToImage = imageDirectory + imageName + "2" + "." + format;
-                            outputFileFullPath = fullPathToImage;
-
-                            File.Move(fullPathToImage, newFullPathToImage);
-                            fullPathToImage = newFullPathToImage;
+                            // Internal format is correct, but extension is wrong. Rename.
+                            string newPathWithCorrectExtension = Path.Combine(imageDirectory, imageName + "." + targetFormatLower);
+                            if (File.Exists(newPathWithCorrectExtension))
+                            {
+                                // If a file with the target extension already exists, handle it (e.g., by backing it up or logging a conflict)
+                                string backupPathForExisting = Path.Combine(imageDirectory, imageName + "_existing_" + DateTime.Now.ToString("yyyyMMddHHmmssfff") + "." + targetFormatLower);
+                                File.Move(newPathWithCorrectExtension, backupPathForExisting);
+                                Logger.Log.Ging($"File: {newPathWithCorrectExtension} already existed. Moved to {backupPathForExisting}.");
+                            }
+                            File.Move(fullPathToImage, newPathWithCorrectExtension);
+                            Logger.Log.Ging($"File: {imageName}{Path.GetExtension(fullPathToImage)} was already {targetFormatLower} format but had wrong extension. Renamed to {newPathWithCorrectExtension}.");
                         }
-
-                        ImageFormat newImageFormat = ImageFormat.Png;
-
-                        if (format == "jpg")
+                        else
                         {
-                            newImageFormat = ImageFormat.Jpeg;
+                            // Both internal format and extension are correct.
+                            Logger.Log.Ging($"File: {fullPathToImage} is already in the correct {targetFormatLower} format. Skipping.");
                         }
-
-                        if (File.Exists(imageDirectory + imageName + "." + format))
-                        {
-                            File.Move(imageDirectory + imageName + "." + format, imageDirectory + imageName + "_2" + "." + format);
-                            fullPathToImage = imageDirectory + imageName + "_2" + "." + format;
-                        }
-
-                        Bitmap bitMapImage = new(fullPathToImage);
-
-                        bitMapImage.Save(imageDirectory + imageName + "." + format, newImageFormat);
-
-                        if (File.Exists(fullPathToImage))
-                        {
-                            bitMapImage.Dispose();
-                            File.Delete(fullPathToImage);
-                            Logger.Log.Ging($"File: {imageName}.{format} was Converted");
-                        }
+                        return; // Early exit, no conversion needed
                     }
+
+                    // Proceed with conversion
+                    string desiredOutputFileFullPath = Path.Combine(imageDirectory, imageName + "." + targetFormatLower);
+
+                    if (File.Exists(desiredOutputFileFullPath))
+                    {
+                        string backupPath = Path.Combine(imageDirectory, imageName + "_old_" + DateTime.Now.ToString("yyyyMMddHHmmssfff") + "." + targetFormatLower);
+                        File.Move(desiredOutputFileFullPath, backupPath);
+                        Logger.Log.Ging($"Existing file at {desiredOutputFileFullPath} was moved to {backupPath}.");
+                    }
+
+                    ImageFormat newImageFormat = ImageFormat.Png; // Default
+                    if (targetFormatLower == "jpg" || targetFormatLower == "jpeg")
+                    {
+                        newImageFormat = ImageFormat.Jpeg;
+                    }
+                    else if (targetFormatLower == "tif" || targetFormatLower == "tiff")
+                    {
+                        newImageFormat = ImageFormat.Tiff;
+                    }
+                    // GIF is handled by System.Drawing.Bitmap.Save with Png ImageFormat, but if specific GIF options were needed, this would be different.
+                    // For now, it will be saved as PNG if "gif" is chosen, unless System.Drawing auto-detects.
+                    // To save as actual GIF: newImageFormat = ImageFormat.Gif; (but ensure input is suitable or handle System.Exception)
+
+                    using (Bitmap bitMapImage = new Bitmap(fullPathToImage))
+                    {
+                        bitMapImage.Save(desiredOutputFileFullPath, newImageFormat);
+                    }
+
+                    // If Save was successful, delete the original file
+                    File.Delete(fullPathToImage);
+                    Logger.Log.Ging($"File: {fullPathToImage} was converted to {desiredOutputFileFullPath}. Original deleted.");
                 }
-                await Task.Delay(10);
+                await Task.Delay(10); // This delay seems to be for UI responsiveness or to avoid rapid file operations. Keeping it.
             }
             catch (Exception ex)
             {
-                Logger.Log.Ging("Error while Converting Image " + ex);
+                Logger.Log.Ging($"Error while Converting Image {Path.GetFileName(fullPathToImage)}: " + ex.Message);
+                // Original file is not deleted in case of error, which is good.
             }
         }
         private static void ConvertWebp(string fullPathToImage, string format)
@@ -184,30 +186,6 @@ namespace PictureConverterWPF
             }
         }
 
-        private static int GetCaseForImage(ImageFormat2 currentImageFormat, string format, string pathToImage)
-        {
-            var extension = Path.GetExtension(pathToImage);
-
-            if (currentImageFormat == ImageFormat2.unknown)
-            {
-                return 1;
-            }
-
-            if (currentImageFormat.ToString() == format)
-            {
-                return 2;
-            }
-
-            if (extension == "." + format)
-            {
-                return 3;
-            }
-            else
-            {
-                return 0;
-            }
-        }
-
         public enum ImageFormat2
         {
             jpeg,
@@ -215,6 +193,7 @@ namespace PictureConverterWPF
             gif,
             webp,
             avif,
+            tiff,
             unknown
         }
 
@@ -226,6 +205,8 @@ namespace PictureConverterWPF
             var gif = new byte[] { 71, 73, 70, 56 }; // gif canon
             var webp = new byte[] { 82, 73, 70, 70 }; // webp canon
             var avif = new byte[] { 0, 0, 0, 28 }; // avif canon
+            var tiff_ii = new byte[] { 0x49, 0x49, 0x2A, 0x00 }; // TIFF II*
+            var tiff_mm = new byte[] { 0x4D, 0x4D, 0x00, 0x2A }; // TIFF MM*
 
             if (png.SequenceEqual(bytes.Take(png.Length)))
                 return ImageFormat2.png;
@@ -244,6 +225,12 @@ namespace PictureConverterWPF
 
             if (avif.SequenceEqual(bytes.Take(avif.Length)))
                 return ImageFormat2.avif;
+
+            if (tiff_ii.SequenceEqual(bytes.Take(tiff_ii.Length)))
+                return ImageFormat2.tiff;
+
+            if (tiff_mm.SequenceEqual(bytes.Take(tiff_mm.Length)))
+                return ImageFormat2.tiff;
 
             return ImageFormat2.unknown;
         }
