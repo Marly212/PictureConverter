@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using ImageMagick; // Added for Magick.NET
 
 namespace PictureConverterWPF
 {
@@ -16,23 +17,40 @@ namespace PictureConverterWPF
         {
             try
             {
+                var imageName = Path.GetFileNameWithoutExtension(fullPathToImage);
+                var imageDirectory = Path.GetDirectoryName(fullPathToImage);
+                string desiredOutputFileFullPath = Path.Combine(imageDirectory, imageName + "." + format.ToLowerInvariant());
+
+                if (File.Exists(desiredOutputFileFullPath))
+                {
+                    string backupPath = Path.Combine(imageDirectory, imageName + "_old_" + DateTime.Now.ToString("yyyyMMddHHmmssfff") + "." + format.ToLowerInvariant());
+                    File.Move(desiredOutputFileFullPath, backupPath);
+                    Logger.Log.Ging($"Existing file at {desiredOutputFileFullPath} was moved to {backupPath}.");
+                }
+
                 byte[] imgData = File.ReadAllBytes(fullPathToImage);
                 ImageFormat2 currentImageFormat = GetImageFormat(imgData);
 
-                if (currentImageFormat == ImageFormat2.webp)
+                if (currentImageFormat == ImageFormat2.webp || currentImageFormat == ImageFormat2.avif)
                 {
-                    ConvertWebp(fullPathToImage, format);
+                    using (MagickImage image = new MagickImage(fullPathToImage))
+                    {
+                        MagickFormat targetMagickFormat = GetMagickFormat(format);
+                        if (targetMagickFormat == MagickFormat.Unknown) // Check if GetMagickFormat returned Unknown
+                        {
+                            Logger.Log.Ging($"Unsupported target format: {format} for Magick.NET conversion. Skipping {Path.GetFileName(fullPathToImage)}.");
+                            return; // Exit if format is not supported by this logic
+                        }
+                        image.Format = targetMagickFormat;
+                        image.Write(desiredOutputFileFullPath);
+                        File.Delete(fullPathToImage); // Delete original file after successful conversion
+                        Logger.Log.Ging($"File: {fullPathToImage} was converted to {desiredOutputFileFullPath} using Magick.NET. Original deleted.");
+                    }
                 }
-
-                else if(currentImageFormat == ImageFormat2.avif)
-                {
-                    ConvertAvif(fullPathToImage, format);
-                }
-
                 else
                 {
-                    var imageName = Path.GetFileNameWithoutExtension(fullPathToImage);
-                    var imageDirectory = Path.GetDirectoryName(fullPathToImage); // Removed trailing "\\" for Path.Combine
+                    // var imageName = Path.GetFileNameWithoutExtension(fullPathToImage); // Already defined above
+                    // var imageDirectory = Path.GetDirectoryName(fullPathToImage); // Already defined above
                     string originalExtension = Path.GetExtension(fullPathToImage).TrimStart('.').ToLowerInvariant();
                     string targetFormatLower = format.ToLowerInvariant();
 
@@ -66,15 +84,15 @@ namespace PictureConverterWPF
                         return; // Early exit, no conversion needed
                     }
 
-                    // Proceed with conversion
-                    string desiredOutputFileFullPath = Path.Combine(imageDirectory, imageName + "." + targetFormatLower);
+                    // Proceed with conversion (this part is for non-WebP/AVIF that are not already correct)
+                    // string desiredOutputFileFullPath = Path.Combine(imageDirectory, imageName + "." + targetFormatLower); // Already defined
 
-                    if (File.Exists(desiredOutputFileFullPath))
-                    {
-                        string backupPath = Path.Combine(imageDirectory, imageName + "_old_" + DateTime.Now.ToString("yyyyMMddHHmmssfff") + "." + targetFormatLower);
-                        File.Move(desiredOutputFileFullPath, backupPath);
-                        Logger.Log.Ging($"Existing file at {desiredOutputFileFullPath} was moved to {backupPath}.");
-                    }
+                    // if (File.Exists(desiredOutputFileFullPath)) // Already handled
+                    // {
+                    // string backupPath = Path.Combine(imageDirectory, imageName + "_old_" + DateTime.Now.ToString("yyyyMMddHHmmssfff") + "." + targetFormatLower);
+                    // File.Move(desiredOutputFileFullPath, backupPath);
+                    // Logger.Log.Ging($"Existing file at {desiredOutputFileFullPath} was moved to {backupPath}.");
+                    // }
 
                     ImageFormat newImageFormat = ImageFormat.Png; // Default
                     if (targetFormatLower == "jpg" || targetFormatLower == "jpeg")
@@ -106,85 +124,34 @@ namespace PictureConverterWPF
                 // Original file is not deleted in case of error, which is good.
             }
         }
-        private static void ConvertWebp(string fullPathToImage, string format)
+
+        private static MagickFormat GetMagickFormat(string format)
         {
-            try
+            switch (format.ToLowerInvariant())
             {
-                var imageName = Path.GetFileNameWithoutExtension(fullPathToImage);
-                var imagePath = Path.GetDirectoryName(fullPathToImage) + "\\";
-                var outputName = imagePath + imageName + ".png";
-
-                Process dwebp = new Process();
-                dwebp.StartInfo.FileName = @"Dependency\dwebp.exe";
-                dwebp.StartInfo.Arguments = $"\"{fullPathToImage}\" -o \"{outputName}\"";
-                dwebp.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-                dwebp.StartInfo.CreateNoWindow = true;
-                dwebp.EnableRaisingEvents = true;
-                dwebp.Exited += (s, e) =>
-                {
-                    File.Delete(fullPathToImage);
-                    Logger.Log.Ging($"File: {imageName} was Converted");
-                };
-
-                _ = dwebp.Start();
-
-                dwebp.WaitForExit();
-
-                if (format == "jpg")
-                {
-                    using Image bitMapImage = new Bitmap(outputName);
-                    bitMapImage.Save(imagePath + imageName + "." + format, ImageFormat.Jpeg);
-
-                    if (File.Exists(imagePath + imageName + "." + format))
-                    {
-                        bitMapImage.Dispose();
-                        File.Delete(outputName);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.Log.Ging("Error while Converting Webp " + ex);
+                case "jpg":
+                case "jpeg":
+                    return MagickFormat.Jpg;
+                case "png":
+                    return MagickFormat.Png;
+                case "gif":
+                    return MagickFormat.Gif;
+                case "bmp":
+                    return MagickFormat.Bmp;
+                case "tiff":
+                case "tif":
+                    return MagickFormat.Tiff;
+                case "webp":
+                    return MagickFormat.WebP;
+                case "avif":
+                    return MagickFormat.Avif;
+                // Add other formats as needed
+                default:
+                    return MagickFormat.Unknown; // Or throw an exception, or return a default
             }
         }
-
-        private static void ConvertAvif(string fullPathToImage, string format)
-        {
-            try
-            {
-                var imageName = Path.GetFileNameWithoutExtension(fullPathToImage);
-                var imagePath = Path.GetDirectoryName(fullPathToImage) + "\\";
-                var imageExtension = Path.GetExtension(fullPathToImage);
-                var realOutputName = imagePath + imageName + "." + format;
-
-                var tempNewName = "process";
-                var tempOutputName = imagePath + tempNewName;
-
-                File.Move(fullPathToImage, tempOutputName + imageExtension);
-
-                Process avif = new();
-                avif.StartInfo.FileName = @"Dependency\avifdec.exe";
-                avif.StartInfo.Arguments = $"\"{tempOutputName + imageExtension}\" \"{tempOutputName + "." + format}\"";
-                avif.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-                avif.StartInfo.CreateNoWindow = true;
-                avif.EnableRaisingEvents = true;
-                avif.Exited += (s, e) =>
-                {
-                    File.Move(tempOutputName + "." + format, realOutputName);
-                    File.Delete(tempOutputName);
-                    File.Delete(tempOutputName + imageExtension);
-                    Logger.Log.Ging($"File: {imageName} was Converted");
-                };
-
-                _ = avif.Start();
-
-                avif.WaitForExit();
-            }
-            catch (Exception ex)
-            {
-                Logger.Log.Ging("Error while Converting Avif " + ex);
-            }
-        }
+        // Removed ConvertWebp method
+        // Removed ConvertAvif method
 
         public enum ImageFormat2
         {
