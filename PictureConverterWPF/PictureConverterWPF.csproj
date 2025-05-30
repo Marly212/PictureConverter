@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net6.0-windows</TargetFramework>
+    <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>True</UseWPF>
     <StartupObject>PictureConverterWPF.App</StartupObject>
     <Platforms>AnyCPU;x64</Platforms>
@@ -29,7 +29,7 @@
 
   <ItemGroup>
     <PackageReference Include="Ookii.Dialogs.Wpf" Version="5.0.1" />
-    <PackageReference Include="Magick.NET-Q8-AnyCPU" Version="13.3.0" />
+    <PackageReference Include="Magick.NET-Q8-AnyCPU" Version="14.6.0" />
   </ItemGroup>
 
 </Project>
