@@ -5,6 +5,7 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Drawing; // For Image.FromFile and RawFormat
 using System.Drawing.Imaging; // For ImageFormat
+using ImageMagick; // Added for Magick.NET types
 
 namespace PictureConverterWPF.Tests
 {
@@ -99,6 +100,21 @@ namespace PictureConverterWPF.Tests
             catch (IOException)
             {
                  return false; // File likely in use or other IO issue
+            }
+        }
+
+        // Helper to get image format using Magick.NET
+        private MagickFormat? GetMagickImageFormat(string filePath)
+        {
+            if (!File.Exists(filePath)) return null;
+            try
+            {
+                MagickImageInfo info = new MagickImageInfo(filePath);
+                return info.Format;
+            }
+            catch
+            {
+                return null; // Could not read image info
             }
         }
         
@@ -276,6 +292,104 @@ namespace PictureConverterWPF.Tests
             var backupFiles = Directory.GetFiles(_testWorkingDir, Path.GetFileNameWithoutExtension(conflictingFileName) + "_old_*.jpg");
             Assert.AreEqual(1, backupFiles.Length, "Exactly one backup file should exist.");
             Assert.IsTrue(File.ReadAllText(backupFiles[0]).Contains("JPG_PLACEHOLDER_TO_BE_BACKED_UP"), "Backup file content is not the original conflicting file.");
+        }
+
+        // --- New Tests for WebP and AVIF ---
+
+        [TestMethod]
+        public async Task Test_Convert_WebPToPng()
+        {
+            string sourceFile = "sample.webp"; // Assuming sample.webp is in TestFiles
+            string sourcePath = Path.Combine(_testWorkingDir, sourceFile);
+            string targetFormat = "png";
+            string expectedOutputFile = Path.ChangeExtension(sourcePath, targetFormat);
+
+            await PictureConverterWPF.Convert.ConvertImage(sourcePath, targetFormat);
+
+            Assert.IsTrue(File.Exists(expectedOutputFile), "Output PNG file was not created from WebP.");
+            Assert.IsFalse(File.Exists(sourcePath), "Original WebP file was not deleted.");
+            Assert.AreEqual(MagickFormat.Png, GetMagickImageFormat(expectedOutputFile), "Output file is not a valid PNG.");
+        }
+
+        [TestMethod]
+        public async Task Test_Convert_WebPToJpg()
+        {
+            string sourceFile = "sample.webp";
+            string sourcePath = Path.Combine(_testWorkingDir, sourceFile);
+            string targetFormat = "jpg";
+            string expectedOutputFile = Path.ChangeExtension(sourcePath, targetFormat);
+
+            await PictureConverterWPF.Convert.ConvertImage(sourcePath, targetFormat);
+
+            Assert.IsTrue(File.Exists(expectedOutputFile), "Output JPG file was not created from WebP.");
+            Assert.IsFalse(File.Exists(sourcePath), "Original WebP file was not deleted.");
+            Assert.AreEqual(MagickFormat.Jpeg, GetMagickImageFormat(expectedOutputFile), "Output file is not a valid JPG.");
+        }
+
+        [TestMethod]
+        public async Task Test_Convert_AvifToPng()
+        {
+            string sourceFile = "sample.avif"; // Assuming sample.avif is in TestFiles
+            string sourcePath = Path.Combine(_testWorkingDir, sourceFile);
+            string targetFormat = "png";
+            string expectedOutputFile = Path.ChangeExtension(sourcePath, targetFormat);
+
+            await PictureConverterWPF.Convert.ConvertImage(sourcePath, targetFormat);
+
+            Assert.IsTrue(File.Exists(expectedOutputFile), "Output PNG file was not created from AVIF.");
+            Assert.IsFalse(File.Exists(sourcePath), "Original AVIF file was not deleted.");
+            Assert.AreEqual(MagickFormat.Png, GetMagickImageFormat(expectedOutputFile), "Output file is not a valid PNG.");
+        }
+
+        [TestMethod]
+        public async Task Test_Convert_AvifToJpg()
+        {
+            string sourceFile = "sample.avif";
+            string sourcePath = Path.Combine(_testWorkingDir, sourceFile);
+            string targetFormat = "jpg";
+            string expectedOutputFile = Path.ChangeExtension(sourcePath, targetFormat);
+
+            await PictureConverterWPF.Convert.ConvertImage(sourcePath, targetFormat);
+
+            Assert.IsTrue(File.Exists(expectedOutputFile), "Output JPG file was not created from AVIF.");
+            Assert.IsFalse(File.Exists(sourcePath), "Original AVIF file was not deleted.");
+            Assert.AreEqual(MagickFormat.Jpeg, GetMagickImageFormat(expectedOutputFile), "Output file is not a valid JPG.");
+        }
+
+        [TestMethod]
+        public async Task Test_Convert_CorruptedWebPToPng()
+        {
+            string sourceFile = "corrupted.webp";
+            string sourcePath = Path.Combine(_testWorkingDir, sourceFile);
+            File.WriteAllText(sourcePath, "This is not a valid webp file"); // Create a dummy corrupted file
+            
+            string targetFormat = "png";
+            string expectedOutputFile = Path.ChangeExtension(sourcePath, targetFormat);
+
+            // Expect an error to be logged, and the original file to be kept.
+            // The ConvertImage method catches exceptions and logs them. It doesn't re-throw.
+            await PictureConverterWPF.Convert.ConvertImage(sourcePath, targetFormat);
+
+            Assert.IsTrue(File.Exists(sourcePath), "Original corrupted WebP file should still exist.");
+            Assert.IsFalse(File.Exists(expectedOutputFile), "Output PNG file should not be created for corrupted WebP.");
+            // Further check: Log assertion if logging mechanism was injectable/mockable or accessible.
+            // For now, we rely on the fact that no exception is thrown out of ConvertImage and the files state.
+        }
+
+        [TestMethod]
+        public async Task Test_Convert_CorruptedAvifToPng()
+        {
+            string sourceFile = "corrupted.avif";
+            string sourcePath = Path.Combine(_testWorkingDir, sourceFile);
+            File.WriteAllText(sourcePath, "This is not a valid avif file"); // Create a dummy corrupted file
+
+            string targetFormat = "png";
+            string expectedOutputFile = Path.ChangeExtension(sourcePath, targetFormat);
+            
+            await PictureConverterWPF.Convert.ConvertImage(sourcePath, targetFormat);
+
+            Assert.IsTrue(File.Exists(sourcePath), "Original corrupted AVIF file should still exist.");
+            Assert.IsFalse(File.Exists(expectedOutputFile), "Output PNG file should not be created for corrupted AVIF.");
         }
     }
 }
